@@ -1,6 +1,0 @@
-{
-  "name": "CivicTech Grievance Tracker",
-  "description": "A real-time civic grievance reporting platform and analytics dashboard covering Hyderabad City, Telangana State, and National (India) focus areas, featuring AI incident prioritization and official draft generation.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
