@@ -4,13 +4,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 
-// Load environment variables from .env
+// Load environment variables
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-// Set port (Render will automatically assign a PORT environment variable)
+// Set port for Render
 const PORT = process.env.PORT || 8080;
 
 // Initialize Google Gemini AI Client
@@ -18,7 +18,7 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || 'MISSING_KEY' 
 });
 
-// --- IN-MEMORY DATABASE (Simulating a real DB for the Hackathon) ---
+// --- FAST, ERROR-FREE IN-MEMORY STORAGE ---
 let issues: any[] = [];
 let alerts: any[] = [];
 let polls = [
@@ -46,17 +46,14 @@ let polls = [
 
 // --- API ENDPOINTS ---
 
-// 1. Get all issues
 app.get('/api/issues', (req, res) => {
   res.json({ issues });
 });
 
-// 2. Submit a new issue
 app.post('/api/issues', (req, res) => {
   const newIssue = req.body;
   issues.unshift(newIssue);
   
-  // Generate a live alert for the ticker
   const newAlert = {
     id: `alert-${Date.now()}`,
     message: `New issue reported: ${newIssue.title}`,
@@ -70,7 +67,6 @@ app.post('/api/issues', (req, res) => {
   res.json({ success: true, issue: newIssue, alert: newAlert });
 });
 
-// 3. Upvote an issue
 app.post('/api/issues/:id/upvote', (req, res) => {
   const issue = issues.find(i => i.id === req.params.id);
   if (issue) {
@@ -81,13 +77,11 @@ app.post('/api/issues/:id/upvote', (req, res) => {
   }
 });
 
-// 4. Resolve an issue status
 app.post('/api/issues/:id/status', (req, res) => {
   const issue = issues.find(i => i.id === req.params.id);
   if (issue) {
     issue.status = req.body.status;
     
-    // Announce resolution on the live feed
     const newAlert = {
       id: `alert-${Date.now()}`,
       message: `Issue resolved by crew: ${issue.title}`,
@@ -104,12 +98,10 @@ app.post('/api/issues/:id/status', (req, res) => {
   }
 });
 
-// 5. Get consensus polls
 app.get('/api/polls', (req, res) => {
   res.json({ polls });
 });
 
-// 6. Vote on a poll
 app.post('/api/polls/:id/vote', (req, res) => {
   const poll = polls.find(p => p.id === req.params.id);
   if (poll) {
@@ -126,12 +118,11 @@ app.post('/api/polls/:id/vote', (req, res) => {
   }
 });
 
-// 7. Get live ticker alerts
 app.get('/api/alerts', (req, res) => {
   res.json({ alerts });
 });
 
-// 8. GEMINI AI AGENT: Analyze Issue & Draft Documents
+// --- SUPER SMART AI ROUTE (Crash-Proofed) ---
 app.post('/api/analyze-civic-issue', async (req, res) => {
   try {
     const { title, description, category, location, level } = req.body;
@@ -146,7 +137,7 @@ app.post('/api/analyze-civic-issue', async (req, res) => {
     Level: ${level}
 
     Determine:
-    1. department: The exact government department responsible (e.g., "GHMC Solid Waste Wing", "HMWSSB", "TSPCB").
+    1. department: The exact government department responsible.
     2. priorityScore: Score from 1-10 based on threat severity.
     3. priorityLevel: "Low", "Medium", "High", or "Critical".
     4. resolvedChecklist: Array of 3-4 engineering/resolution steps.
@@ -154,10 +145,9 @@ app.post('/api/analyze-civic-issue', async (req, res) => {
     6. authorityContact: Phone/Email of the department.
     7. suggestedActionPlan: 1-2 sentences on what citizens should do right now.
 
-    Return the result strictly as a valid JSON object matching this exact schema without any markdown wrapping or explanation text.
+    Return the result strictly as a valid JSON object matching this exact schema.
     `;
 
-    // Fallback if no API key is provided
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MISSING_KEY') {
       return res.json({
         result: {
@@ -172,14 +162,16 @@ app.post('/api/analyze-civic-issue', async (req, res) => {
       });
     }
 
+    // STRICT JSON ENFORCEMENT ADDED HERE
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-flash',
       contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      }
     });
     
-    // Clean and parse the JSON response from Gemini
-    let rawText = response.text || "{}";
-    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const rawText = response.text || "{}";
     const result = JSON.parse(rawText);
 
     res.json({ result });
@@ -189,21 +181,18 @@ app.post('/api/analyze-civic-issue', async (req, res) => {
   }
 });
 
-// --- PRODUCTION SERVING LOGIC ---
+// --- SERVE THE REACT FRONTEND ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// When running online, Express acts as the web host for the compiled React files
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'development') {
   app.use(express.static(path.join(__dirname, '../dist')));
   
-  // Catch-all route to hand navigation back to the React app
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
   });
 }
 
-// Start Server Boot
 app.listen(PORT, () => {
   console.log(`CivicPlus Master Node backend running on port ${PORT}`);
 });
