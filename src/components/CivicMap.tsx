@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ReportedIssue, LocationMarker, IssueLevel } from '../types';
-import { MapPin, Compass, ShieldAlert, Sparkles, ToggleLeft, ToggleRight, Droplet, Store } from 'lucide-react';
+import { Compass, ToggleLeft, ToggleRight } from 'lucide-react';
 import { HYDERABAD_ZONES, TELANGANA_DISTRICTS, INDIA_REGIONS } from '../data/mockData';
 import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
 
-// (Keeping your exact same convertToRealLatLng logic and styles)
 const CYBER_STYLE = [
   { "elementType": "geometry", "stylers": [{ "color": "#0f172a" }] },
   { "elementType": "labels.text.fill", "stylers": [{ "color": "#94a3b8" }] },
@@ -70,25 +69,26 @@ function MapCenterController({ center, zoom }: { center: { lat: number; lng: num
   return null;
 }
 
+interface CivicMapProps {
+  level: IssueLevel;
+  issues: ReportedIssue[];
+  selectedIssueId: string | null;
+  onSelectIssue: (id: string | null) => void;
+  onMapClick?: (lat: number, lng: number, locationName: string) => void;
+  tempPin: { lat: number; lng: number; locationName: string } | null;
+  onUpvoteIssue?: (issueId: string) => void;
+  onResolveIssue?: (issueId: string) => void;
+  theme?: 'slate' | 'cyber' | 'forest';
+}
+
 export default function CivicMap({
   level, issues, selectedIssueId, onSelectIssue, onMapClick, tempPin, onUpvoteIssue, onResolveIssue, theme = 'slate'
-}: any) {
+}: CivicMapProps) {
   const [hoveredNode, setHoveredNode] = useState<LocationMarker | null>(null);
   const [useSimulationMode, setUseSimulationMode] = useState<boolean>(true);
 
-  const API_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || '';
-  const hasValidKey = Boolean(API_KEY) && API_KEY.length > 10;
-
   const markers: LocationMarker[] = level === 'City' ? HYDERABAD_ZONES : level === 'State' ? TELANGANA_DISTRICTS : INDIA_REGIONS;
-  const levelIssues = issues.filter((issue: any) => issue.level === level);
-
-  const getMapDefaults = () => {
-    if (level === 'City') return { center: { lat: 17.4150, lng: 78.4300 }, zoom: 12 };
-    if (level === 'State') return { center: { lat: 17.9000, lng: 79.1500 }, zoom: 7.8 };
-    return { center: { lat: 21.0000, lng: 78.9600 }, zoom: 4.6 };
-  };
-
-  const { center: initialCenter, zoom: initialZoom } = getMapDefaults();
+  const levelIssues = issues.filter(issue => issue.level === level);
 
   const handleSvgCanvasClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!onMapClick) return;
@@ -109,22 +109,20 @@ export default function CivicMap({
     onMapClick(latCoord, lngCoord, `${nearestMarker.name} (Near Pinpoint)`);
   };
 
-  const currentSelectedIssue = levelIssues.find((i: any) => i.id === selectedIssueId);
+  const currentSelectedIssue = levelIssues.find(i => i.id === selectedIssueId);
 
-  // DYNAMIC COLOR LOGIC FOR NEW FEATURES
-  const getPinColor = (issue: any) => {
-    if (issue.category === 'Water Point') return '#3b82f6'; // Blue
-    if (issue.category === 'Public Toilet') return '#0ea5e9'; // Teal/Cyan
-    if (issue.category === 'Commercial Hygiene') return '#a855f7'; // Purple
-    if (issue.status === 'Resolved') return '#10b981'; // Green
-    if (issue.priority === 'Critical') return '#f43f5e'; // Red
-    if (issue.priority === 'High') return '#f97316'; // Orange
-    return '#eab308'; // Yellow for Medium/Low
+  const getPinColor = (issue: ReportedIssue) => {
+    if (issue.category === 'Water Point') return '#3b82f6';
+    if (issue.category === 'Public Toilet') return '#0ea5e9';
+    if (issue.category === 'Commercial Hygiene') return '#a855f7';
+    if (issue.status === 'Resolved') return '#10b981';
+    if (issue.priority === 'Critical') return '#f43f5e';
+    if (issue.priority === 'High') return '#f97316';
+    return '#eab308';
   };
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col h-[520px]">
-      
       <div className="flex justify-between items-center mb-4 z-10 flex-wrap gap-2">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg text-blue-600 border border-blue-200/40">
@@ -140,48 +138,46 @@ export default function CivicMap({
       </div>
 
       <div className="flex-1 relative bg-slate-50 rounded-2xl overflow-hidden border border-slate-200/80 flex items-center justify-center">
-          <>
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.03)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none z-0" />
-            <svg 
-              onClick={handleSvgCanvasClick}
-              className="w-full h-full cursor-crosshair select-none relative z-10"
-              viewBox="0 0 100 100" 
-              preserveAspectRatio="none"
-            >
-              {markers.map((marker, index) => {
-                const isHovered = hoveredNode?.name === marker.name;
-                return (
-                  <g key={`svg-marker-${index}`} onMouseEnter={() => setHoveredNode(marker)} onMouseLeave={() => setHoveredNode(null)}>
-                    <circle cx={marker.lng} cy={marker.lat} r={isHovered ? 4.5 : 2.5} fill="rgba(37, 99, 235, 0.25)" className="transition-all duration-300" />
-                    <circle cx={marker.lng} cy={marker.lat} r={1.2} fill="#2563eb" />
-                  </g>
-                );
-              })}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.03)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none z-0" />
+        <svg 
+          onClick={handleSvgCanvasClick}
+          className="w-full h-full cursor-crosshair select-none relative z-10"
+          viewBox="0 0 100 100" 
+          preserveAspectRatio="none"
+        >
+          {markers.map((marker, index) => {
+            const isHovered = hoveredNode?.name === marker.name;
+            return (
+              <g key={`svg-marker-${index}`} onMouseEnter={() => setHoveredNode(marker)} onMouseLeave={() => setHoveredNode(null)}>
+                <circle cx={marker.lng} cy={marker.lat} r={isHovered ? 4.5 : 2.5} fill="rgba(37, 99, 235, 0.25)" className="transition-all duration-300" />
+                <circle cx={marker.lng} cy={marker.lat} r={1.2} fill="#2563eb" />
+              </g>
+            );
+          })}
 
-              {levelIssues.map((issue: any) => {
-                const isSelected = selectedIssueId === issue.id;
-                const pinColor = getPinColor(issue);
+          {levelIssues.map((issue) => {
+            const isSelected = selectedIssueId === issue.id;
+            const pinColor = getPinColor(issue);
 
-                return (
-                  <g key={`svg-issue-${issue.id}`} onClick={(e) => { e.stopPropagation(); onSelectIssue(isSelected ? null : issue.id); }} className="cursor-pointer group">
-                    <circle cx={issue.lng} cy={issue.lat} r={isSelected ? 8 : 4.5} fill="none" stroke={pinColor} strokeWidth="0.7" className="animate-ping origin-center" />
-                    <circle cx={issue.lng} cy={issue.lat} r={isSelected ? 3.5 : 2.2} fill={pinColor} className="transition-all duration-300" />
-                    <circle cx={issue.lng} cy={issue.lat} r={0.8} fill="#ffffff" />
-                  </g>
-                );
-              })}
+            return (
+              <g key={`svg-issue-${issue.id}`} onClick={(e) => { e.stopPropagation(); onSelectIssue(isSelected ? null : issue.id); }} className="cursor-pointer group">
+                <circle cx={issue.lng} cy={issue.lat} r={isSelected ? 8 : 4.5} fill="none" stroke={pinColor} strokeWidth="0.7" className="animate-ping origin-center" />
+                <circle cx={issue.lng} cy={issue.lat} r={isSelected ? 3.5 : 2.2} fill={pinColor} className="transition-all duration-300" />
+                <circle cx={issue.lng} cy={issue.lat} r={0.8} fill="#ffffff" />
+              </g>
+            );
+          })}
 
-              {tempPin && (
-                <g className="animate-bounce">
-                  <circle cx={tempPin.lng} cy={tempPin.lat} r={5.5} fill="none" stroke="#10b981" strokeWidth="0.7" />
-                  <circle cx={tempPin.lng} cy={tempPin.lat} r={2.5} fill="#10b981" />
-                </g>
-              )}
-            </svg>
-          </>
+          {tempPin && (
+            <g className="animate-bounce">
+              <circle cx={tempPin.lng} cy={tempPin.lat} r={5.5} fill="none" stroke="#10b981" strokeWidth="0.7" />
+              <circle cx={tempPin.lng} cy={tempPin.lat} r={2.5} fill="#10b981" />
+            </g>
+          )}
+        </svg>
 
         {selectedIssueId && currentSelectedIssue && (
-          <div className="absolute top-4 right-4 md:w-80 bg-white/95 border border-slate-200 p-4 rounded-2xl shadow-xl z-20 backdrop-blur animate-fade-in text-slate-800 text-left">
+          <div className="absolute top-4 right-4 left-4 md:left-auto md:w-80 bg-white/95 border border-slate-200 p-4 rounded-2xl shadow-xl z-20 backdrop-blur animate-fade-in text-slate-800 text-left">
             <div className="flex justify-between items-start gap-2">
               <span className="px-2.5 py-0.5 text-[9px] font-mono rounded-full font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200">
                 {currentSelectedIssue.category}
