@@ -21,7 +21,6 @@ export default function CitizenLogin({ onLogin }: CitizenLoginProps) {
       return;
     }
     
-    // Save to browser's secure local storage
     const userData = { name: name.trim(), phone: phone.trim() };
     localStorage.setItem('civic_user_session', JSON.stringify(userData));
     onLogin(userData);
