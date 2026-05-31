@@ -1,7 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 
 // Load environment variables
@@ -162,7 +161,6 @@ app.post('/api/analyze-civic-issue', async (req, res) => {
       });
     }
 
-    // STRICT JSON ENFORCEMENT ADDED HERE
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-flash',
       contents: prompt,
@@ -181,15 +179,14 @@ app.post('/api/analyze-civic-issue', async (req, res) => {
   }
 });
 
-// --- SERVE THE REACT FRONTEND ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+// --- SERVE THE REACT FRONTEND (FIXED FOR RENDER COMPATIBILITY) ---
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'development') {
-  app.use(express.static(path.join(__dirname, '../dist')));
+  // Use process.cwd() to safely target the root directory in Render's environment
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath));
   
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    res.sendFile(path.join(distPath, 'index.html'));
   });
 }
 
