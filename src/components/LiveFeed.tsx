@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LiveAlert, IssueLevel, ReportedIssue, IssueCategory, IssuePriority } from '../types';
-import { Radio, Users, HeartPulse, Send, CheckCircle2, ShieldAlert, Sparkles } from 'lucide-react';
-import { LIVE_TICKER_TEMPLATES } from '../data/mockData';
+import { Radio, Users, HeartPulse, ShieldAlert, CheckCircle2, Droplet, Star, Shield } from 'lucide-react';
 
 interface LiveFeedProps {
   level: IssueLevel;
@@ -16,7 +15,6 @@ export default function LiveFeed({
   level, 
   onReceiveExtAlert, 
   activeIssues, 
-  onUpvoteFromAlert,
   onAdmitNewAlertAsIssue,
   alerts: propAlerts
 }: LiveFeedProps) {
@@ -30,154 +28,124 @@ export default function LiveFeed({
     },
     {
       id: 'alert-initial-2',
-      message: 'New e-waste litter hazard report logged at Madhapur corridor.',
+      message: 'Citizen verified clean Public Toilet facility (5 Stars).',
       timestamp: new Date(Date.now() - 120000).toISOString(),
       type: 'report',
-      locationName: 'Madhapur (Hitec City), Hyderabad'
+      locationName: 'Madhapur, Hyderabad'
     }
   ]);
 
   const displayAlerts = propAlerts || alerts;
-
-  // Current counter representing online simulated active observers
   const [liveObservers, setLiveObservers] = useState(25);
 
   useEffect(() => {
-    // Oscillate observer numbers to simulate organic real-time client logins
     const obsInterval = setInterval(() => {
       setLiveObservers(prev => {
         const delta = Math.floor(Math.random() * 5) - 2;
-        const nextVal = prev + delta;
-        return nextVal > 12 ? nextVal : 12;
+        return Math.max(12, prev + delta);
       });
     }, 4000);
 
-    // Only run simulated ticker if parent didn't supply real-time server synced alerts
     let feedInterval: NodeJS.Timeout | null = null;
     if (!propAlerts) {
       feedInterval = setInterval(() => {
-        const isReportType = Math.random() > 0.45;
+        const rand = Math.random();
         
-        if (isReportType) {
-          const rawTpl = LIVE_TICKER_TEMPLATES[Math.floor(Math.random() * LIVE_TICKER_TEMPLATES.length)];
-          
-          const newAlert: LiveAlert = {
+        let newAlert: LiveAlert;
+        
+        if (rand > 0.6) {
+          // Simulate a new utility/rating log
+          newAlert = {
             id: `alert-dyn-${Date.now()}`,
-            message: isReportType 
-              ? `${rawTpl.text} - awaiting community prioritization upvotes.`
-              : `Department assigned crew to inspect location: ${rawTpl.locationName}`,
+            message: `New Free Water Point mapped by community volunteer.`,
             timestamp: new Date().toISOString(),
             type: 'report',
-            locationName: rawTpl.locationName
+            locationName: 'Kukatpally Zone'
           };
-
-          setAlerts(prev => [newAlert, ...prev.slice(0, 7)]);
-          onReceiveExtAlert(newAlert);
-
-          onAdmitNewAlertAsIssue({
-            title: rawTpl.text,
-            description: `Telemetry system auto-detection report. Citizen concerns regarding ${rawTpl.category.toLowerCase()} issues have been flagged near ${rawTpl.locationName}. Urgently requires resolution.`,
-            category: rawTpl.category as IssueCategory,
-            location: rawTpl.locationName,
-            level: rawTpl.level as IssueLevel,
-            lat: 15 + Math.floor(Math.random() * 65),
-            lng: 15 + Math.floor(Math.random() * 65),
-            reporter: 'Live Sensor Node',
-            priority: 'Medium' as IssuePriority,
-            priorityScore: 5,
-            image: null
-          });
-
-        } else {
-          const resolvedOptions = [
-            'GHMC vacuum suction clears drainage on Sector 3 Madhapur road.',
-            'TSSPDCL substation technician repairs open distribution box near Begumpet.',
-            'State High-speed Highway patrol clears sand silt piles off NH-163.',
-            'Karimnagar water maintenance team completes local pipeline pressure sealing.',
-            'Central transport engineers mount solar delineator signposts near Telangana state border.'
-          ];
-
-          const rMessage = resolvedOptions[Math.floor(Math.random() * resolvedOptions.length)];
-
-          const newAlert: LiveAlert = {
+        } else if (rand > 0.3) {
+          // Simulate a hazard report
+          newAlert = {
             id: `alert-dyn-${Date.now()}`,
-            message: `✔️ ${rMessage}`,
+            message: `High Priority Hazard: Broken street lights. Awaiting community verification.`,
+            timestamp: new Date().toISOString(),
+            type: 'hazard',
+            locationName: 'Gachibowli'
+          };
+        } else {
+          // Simulate a resolution
+          newAlert = {
+            id: `alert-dyn-${Date.now()}`,
+            message: `✔️ Maintenance team completed pressure sealing on local pipeline.`,
             timestamp: new Date().toISOString(),
             type: 'resolve',
             locationName: 'Telangana Region'
           };
-
-          setAlerts(prev => [newAlert, ...prev.slice(0, 7)]);
-          onReceiveExtAlert(newAlert);
         }
 
-      }, 18000);
+        setAlerts(prev => [newAlert, ...prev.slice(0, 15)]);
+        onReceiveExtAlert(newAlert);
+      }, 22000);
     }
 
     return () => {
       clearInterval(obsInterval);
       if (feedInterval) clearInterval(feedInterval);
     };
-  }, [level, onReceiveExtAlert, onAdmitNewAlertAsIssue, propAlerts]);
+  }, [level, onReceiveExtAlert, propAlerts]);
+
+  // Determine icon and color based on alert content
+  const getAlertUI = (alert: LiveAlert) => {
+    if (alert.type === 'resolve') {
+      return { icon: <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />, bg: 'bg-emerald-50/60 border-emerald-250 text-slate-800' };
+    }
+    if (alert.message.includes('Water Point') || alert.message.includes('Toilet')) {
+      return { icon: <Droplet className="w-5 h-5 text-cyan-600 flex-shrink-0" />, bg: 'bg-cyan-50 border-cyan-200 text-slate-800' };
+    }
+    if (alert.message.includes('Stars') || alert.message.includes('rating')) {
+      return { icon: <Star className="w-5 h-5 text-amber-500 flex-shrink-0" />, bg: 'bg-amber-50 border-amber-200 text-slate-800' };
+    }
+    return { icon: <ShieldAlert className="w-5 h-5 text-rose-500 flex-shrink-0 animate-pulse" />, bg: 'bg-rose-50 border-rose-200 text-slate-800' };
+  };
 
   return (
-    <div id="live-public-ticker-column" className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm relative overflow-hidden flex flex-col h-[400px] text-slate-800 animate-fade-in hover:shadow-md transition-all duration-300">
+    <div id="live-public-ticker-column" className="bg-slate-50 border-none p-4 relative overflow-hidden flex flex-col h-[350px] animate-fade-in">
       
-      <div className="flex justify-between items-center pb-4 border-b border-slate-200/50 mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1 px-1.5 bg-rose-50 rounded-full text-rose-500 border border-rose-100/40">
-            <Radio className="w-4 h-4 animate-ping" />
+      <div className="flex justify-between items-center pb-3 border-b border-slate-200 mb-3">
+        <div className="flex items-center gap-2">
+          <div className="p-1 px-1.5 bg-blue-100 rounded-full text-blue-600 border border-blue-200">
+            <Radio className="w-3.5 h-3.5 animate-ping" />
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 font-sans tracking-tight">Active Transmissions Stream</h3>
-            <p className="text-[10px] text-slate-500 font-bold font-mono tracking-wide uppercase">Consensus Terminal Node</p>
-          </div>
+          <h3 className="text-xs font-bold text-slate-900 tracking-tight uppercase">Live Sensor Node</h3>
         </div>
 
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 border border-slate-200/50 rounded-xl text-slate-600 font-mono text-[9px] font-bold tracking-wider">
-          <Users className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
-          <span className="text-blue-700 font-extrabold">{liveObservers}</span> ONLINE
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-600 font-mono text-[9px] font-bold">
+          <Users className="w-3 h-3 text-blue-600 animate-pulse" />
+          <span className="text-blue-700">{liveObservers}</span> ONLINE
         </div>
       </div>
 
-      <div className="flex-1 space-y-3.5 overflow-y-auto pr-1 scrollbar-thin">
+      <div className="flex-1 space-y-2.5 overflow-y-auto pr-1 scrollbar-thin">
         {displayAlerts.map((alert) => {
-          const isResolve = alert.type === 'resolve';
+          const ui = getAlertUI(alert);
           
           return (
-            <div 
-              key={alert.id}
-              className={`p-3.5 rounded-2xl border text-xs flex gap-3 items-start transition-all duration-300 animate-slide-in ${
-                isResolve 
-                  ? 'bg-emerald-50/60 border-emerald-250 text-slate-100 shadow-[0_2px_12px_rgba(16,185,129,0.03)]' 
-                  : 'bg-slate-50 border-slate-200/70 shadow-2xs'
-              }`}
-            >
-              <div className="mt-0.5 outline-none">
-                {isResolve ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                ) : (
-                  <ShieldAlert className="w-5 h-5 text-blue-600 flex-shrink-0 animate-pulse" />
-                )}
-              </div>
-
-              <div className="flex-1 space-y-1.5">
-                <div className="flex justify-between text-[10px] font-mono text-slate-400 mb-0.5 font-bold tracking-tight">
-                  <span className={`${isResolve ? 'text-emerald-800' : 'text-slate-705'} font-bold`}>{alert.locationName}</span>
-                  <span className="text-slate-400/80 font-semibold">
-                    {new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
+            <div key={alert.id} className={`p-3 rounded-xl border text-xs flex gap-2.5 items-start transition-all duration-300 animate-slide-in shadow-sm ${ui.bg}`}>
+              <div className="mt-0.5 outline-none">{ui.icon}</div>
+              <div className="flex-1 space-y-1">
+                <div className="flex justify-between text-[9px] font-mono text-slate-500 font-bold uppercase">
+                  <span className="text-slate-700 truncate max-w-[120px]">{alert.locationName}</span>
+                  <span>{new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
-                <p className="text-[11px] text-slate-800 leading-relaxed font-sans font-semibold">{alert.message}</p>
+                <p className="text-[11px] font-semibold leading-relaxed font-sans">{alert.message}</p>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="mt-4 pt-3 border-t border-slate-200/50 text-center flex items-center justify-center gap-1.5 text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">
-        <HeartPulse className="w-4 h-4 text-rose-500 animate-pulse" />
-        Geographical live nodes synchronizing.
+      <div className="mt-3 pt-2 border-t border-slate-200 text-center flex items-center justify-center gap-1 text-[9px] font-mono text-slate-400 font-bold uppercase">
+        <HeartPulse className="w-3 h-3 text-rose-500 animate-pulse" />
+        Syncing geographical data
       </div>
     </div>
   );
